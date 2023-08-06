@@ -2,8 +2,8 @@ extern crate pnet;
 
 use pnet::datalink::Channel::Ethernet;
 use pnet::datalink::{self, NetworkInterface};
-use pnet::packet::ethernet::{EthernetPacket, MutableEthernetPacket};
-use pnet::packet::{MutablePacket, Packet};
+use pnet::packet::ethernet::EthernetPacket;
+use pnet::packet::Packet;
 use pnet::util::MacAddr;
 
 use std::env;
@@ -80,8 +80,6 @@ fn main() {
         ),
     };
 
-    // std::collections::Hash
-
     loop {
         match rx.next() {
             Ok(packet) => {
@@ -96,6 +94,11 @@ fn main() {
                         println!("Problem is happened");
                     }
                 };
+
+                //header 길이가 5가 아닌것
+                //identification 이 같은 패킷 flag랑 fragment_offset에 맞춰서 조립하기
+
+                //data 분석하는 방법 비교하기
 
                 // Constructs a single packet, the same length as the the one received,
                 // using the provided closure. This allows the packet to be constructed
@@ -138,7 +141,7 @@ fn make_custom_packet(raw_packet: &[u8]) -> Option<CustomPacket> {
             let version = byte / 16;
             let header_length = byte % 16;
 
-            // - type service(1바이트)
+            // - diff_serv(1바이트)
             let diff_serv = iter.next().unwrap();
 
             // - total length(2바이트)
