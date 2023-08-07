@@ -2,11 +2,13 @@ extern crate pnet;
 
 use pnet::datalink::Channel::Ethernet;
 use pnet::datalink::{self, NetworkInterface};
+use pnet::packet;
 use pnet::packet::ethernet::EthernetPacket;
 use pnet::packet::Packet;
 use pnet::util::MacAddr;
 
 use std::env;
+use std::thread;
 use std::net::Ipv4Addr;
 
 #[derive(Debug)]
@@ -21,7 +23,7 @@ enum ProtocolType {
 enum PacketType {
     Length(u16),
     XNSIDP,
-    IP{
+    IPv4{
         version: u8,
         header_length: u8,
         diff_serv: u8,
@@ -71,7 +73,7 @@ fn main() {
         .unwrap();
 
     // Create a new channel, dealing with layer 2 packets
-    let (mut tx, mut rx) = match datalink::channel(&interface, Default::default()) {
+    let (mut _tx, mut rx) = match datalink::channel(&interface, Default::default()) {
         Ok(Ethernet(tx, rx)) => (tx, rx),
         Ok(_) => panic!("Unhandled channel type"),
         Err(e) => panic!(
@@ -80,50 +82,39 @@ fn main() {
         ),
     };
 
-    loop {
-        match rx.next() {
-            Ok(packet) => {
-                let packet = EthernetPacket::new(packet).unwrap();
-
-                let packet = make_custom_packet(packet.packet());
-                match packet {
-                    Some(packet) => {
-                        println!("\n{:?}", packet);
-                    }
-                    None => {
-                        println!("Problem is happened");
-                    }
-                };
-
-                //header 길이가 5가 아닌것
-                //identification 이 같은 패킷 flag랑 fragment_offset에 맞춰서 조립하기
-
-                //data 분석하는 방법 비교하기
-
-                // Constructs a single packet, the same length as the the one received,
-                // using the provided closure. This allows the packet to be constructed
-                // directly in the write buffer, without copying. If copying is not a
-                // problem, you could also use send_to.
-                //
-                // The packet is sent once the closure has finished executing.
-                // tx.build_and_send(1, packet.packet().len(),
-                //     &mut |mut new_packet| {
-                //         let mut new_packet = MutableEthernetPacket::new(new_packet).unwrap();
-
-                //         // Create a clone of the original packet
-                //         new_packet.clone_from(&packet);
-
-                //         // Switch the source and destination
-                //         new_packet.set_source(packet.get_destination());
-                //         new_packet.set_destination(packet.get_source());
-                // });
-            }
-            Err(e) => {
-                // If an error occurs, we can handle it here
-                panic!("An error occurred while reading: {}", e);
+    let reader = thread::spawn(move|| {
+        loop {
+            match rx.next() {
+                Ok(packet) => {
+                    let packet = EthernetPacket::new(packet).unwrap();
+                    let custom_packet = make_custom_packet(packet.packet());
+                    match custom_packet {
+                        Some(pc) => {
+                            println!("\n{:?}", pc);
+                            println!("\n{:?}", packet::ipv4::Ipv4Packet::new(packet.payload()));
+                        }
+                        None => {
+                            println!("Problem is happened");
+                        }
+                    };
+    
+                    //header 길이가 5가 아닌것
+                    //identification 이 같은 패킷 flag랑 fragment_offset에 맞춰서 조립하기
+    
+                    //data 분석하는 방법 비교하기
+    
+                }
+                Err(e) => {
+                    // If an error occurs, we can handle it here
+                    panic!("An error occurred while reading: {}", e);
+                }
             }
         }
-    }
+    });
+
+    reader.join();
+
+    
 }
 
 fn make_custom_packet(raw_packet: &[u8]) -> Option<CustomPacket> {
@@ -183,7 +174,7 @@ fn make_custom_packet(raw_packet: &[u8]) -> Option<CustomPacket> {
             // - data(세그먼트) 나머지 전부
             let data: Vec<u8> = iter.collect();
             
-            PacketType::IP{
+            PacketType::IPv4{
                 version, header_length, 
                 diff_serv, 
                 total_length, 
@@ -230,3 +221,38 @@ fn mapping_ip4_addr<T>(iter: &mut T) -> Ipv4Addr
 {
     Ipv4Addr::new(iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap(), iter.next().unwrap())
 }
+
+fn splice_byte(number: u8, byte: u8) -> (u8, u8) {
+    assert!(number < 8);
+
+    let key = 1 << (8 - number);
+
+    (byte/key, byte%key)
+}
+
+fn assemble_byte<T>(pieces: &mut dyn Iterator<Item = u8>) -> T 
+    where T: From<u8> + std::ops::Shl<u8, Output = T> + Default + std::ops::BitOr<Output = T>
+{
+    pieces.fold(T::default(), |sum, n| {
+        (sum << 8) | T::from(n)
+    })
+}
+
+
+                    // Constructs a single packet, the same length as the the one received,
+                    // using the provided closure. This allows the packet to be constructed
+                    // directly in the write buffer, without copying. If copying is not a
+                    // problem, you could also use send_to.
+                    //
+                    // The packet is sent once the closure has finished executing.
+                    // tx.build_and_send(1, packet.packet().len(),
+                    //     &mut |mut new_packet| {
+                    //         let mut new_packet = MutableEthernetPacket::new(new_packet).unwrap();
+    
+                    //         // Create a clone of the original packet
+                    //         new_packet.clone_from(&packet);
+    
+                    //         // Switch the source and destination
+                    //         new_packet.set_source(packet.get_destination());
+                    //         new_packet.set_destination(packet.get_source());
+                    // });
