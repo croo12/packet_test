@@ -8,11 +8,11 @@ extern crate pnet;
 use datalink::EthernetIIFrame;
 use pnet::datalink::Channel::Ethernet;
 use pnet::datalink::NetworkInterface;
-use pnet::packet::ethernet::EthernetPacket;
 
 use std::collections::HashMap;
-use std::{env, thread};
-use std::sync::{Arc, Mutex};
+use std::thread;
+use std::sync::{Arc, RwLock};
+use std::time::Duration;
 
 // Invoke as echo <interface name>
 fn main() {
@@ -25,7 +25,7 @@ fn main() {
         println!("이름: {}\n설명: {}\n", i.name, i.description);
     }
 
-    let packet_box = Arc::new(Mutex::new(HashMap::new()));
+    let packet_box = Arc::new(RwLock::new(HashMap::new()));
     let mut handles = vec![];
 
     interfaces.into_iter().for_each(|interface| {
@@ -35,34 +35,46 @@ fn main() {
     });
 
     loop {
-        println!("{:?}", packet_box);
+        // let mut buf = String::new();
+        // stdin().read_line(&mut buf).unwrap();
+
+        // println!("{}", buf);
+
+        std::thread::sleep(Duration::from_millis(1000));
+
+        for (key, packet) in packet_box.read().unwrap().iter() {
+            println!("no.{} packet\n{:?}\n\n", key, packet);
+        }
+
+        println!("good choice");
     }
 }
 
 fn capture_packet(
     interface: NetworkInterface,
-    map: Arc<Mutex<HashMap<pnet::util::MacAddr, EthernetIIFrame>>>,
+    map: Arc<RwLock<HashMap<usize, EthernetIIFrame>>>,
 ) {
     // Create a new channel, dealing with layer 2 packets
     let (mut _tx, mut rx) = match pnet::datalink::channel(&interface, Default::default()) {
         Ok(Ethernet(tx, rx)) => (tx, rx),
         Ok(_exception) => panic!("Unhandled channel type"),
-        Err(e) => panic!(
-            "An error occurred when creating the datalink channel: {}",
-            e
-        ),
+        Err(e) => {
+            println!("An error occurred when creating the datalink channel: {}\ninterface: {}", e, interface.description);
+            return;
+        },
     };
 
     loop {
         match rx.next() {
             Ok(packet) => {
-                EthernetPacket::new(packet);
+                // EthernetPacket::new(packet);
                 // let packet = EthernetPacket::new(packet).unwrap();
                 let custom_packet = datalink::EthernetIIFrame::new(packet);
                 match custom_packet {
                     Some(pc) => {
-                        println!("\n{:?}", pc);
-                        map.lock().unwrap().insert(pc.get_source() , pc);
+                        // println!("\n{:?}", pc);
+                        let key = map.read().unwrap().len();
+                        map.write().unwrap().insert(key, pc);
                     }
                     None => {
                         println!("Problem is happened");
