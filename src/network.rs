@@ -84,6 +84,9 @@ impl IPv4Packet {
 
         let data: Vec<u8> = iter.collect();
         let payload = match &protocol_type {
+            transport::ProtocolType::ICMP => {
+                transport::TransportSegment::ICMP(transport::ICMPSegment::new(&data).unwrap())
+            }
             transport::ProtocolType::TCP => {
                 transport::TransportSegment::TCP(transport::TCPSegment::new(&data).unwrap())
             }

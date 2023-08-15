@@ -10,9 +10,31 @@ pub enum ProtocolType {
 
 #[derive(Debug)]
 pub enum TransportSegment {
+    ICMP(ICMPSegment),
     TCP(TCPSegment),
     UDP(UDPSegment),
     UNDEFINED,
+}
+
+#[derive(Debug)]
+pub struct ICMPSegment {
+    icmp_type: u8,
+    icmp_subtype: u8,
+    checksum: u16,
+    content: u32,
+}
+
+impl ICMPSegment {
+    pub fn new(byte_array: &[u8]) -> Option<Self> {
+        let mut iter = byte_array.iter().map(|&s| s);
+        
+        let icmp_type = iter.next().unwrap();
+        let icmp_subtype = iter.next().unwrap();
+        let checksum = util::assemble_byte(&mut iter.by_ref().take(2));
+        let content = util::assemble_byte(&mut iter.by_ref().take(4));
+
+        Some(ICMPSegment { icmp_type, icmp_subtype, checksum, content })
+    }
 }
 
 #[derive(Debug)]
@@ -112,4 +134,3 @@ impl UDPSegment {
         })
     }
 }
-
