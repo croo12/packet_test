@@ -11,20 +11,34 @@ mod network_test;
 #[command(version = "0.1")]
 #[command(about = "NetworkTest And Rust Tutorial")]
 struct CommandLine {
-    command: Option<String>
+    #[clap(subcommand)]
+    command: Option<Command>
+}
+
+#[derive(Parser)]
+enum Command {
+    Ls,
+    Read(ReadArgs)
+}
+
+#[derive(Parser)]
+struct ReadArgs {
+    #[arg(short, long)]
+    name: Vec<String>
 }
 
 fn main() {
     let cmd = CommandLine::parse();
 
     if let Some(command) = cmd.command {
-        match command.as_str() {
-            "ls" => {
+        match command {
+            Command::Ls => {
                 print!("{}", network_test::get_interface_names());
             },
-            "read" => {
-                read_packet(&["\\Device\\NPF_{795C5FEC-E759-4FF5-AE9A-F6782C4FC796}"])
-                // read_packet(interfaces)
+            Command::Read(args) => {
+                println!("args = {:?}", args.name);
+                // read_packet(&[String::from("\\Device\\NPF_{795C5FEC-E759-4FF5-AE9A-F6782C4FC796}")]);
+                read_packet(&args.name);
             }
             _ => {
                 println!("this is not defined command");

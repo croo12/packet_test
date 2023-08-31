@@ -41,7 +41,7 @@ pub fn get_interface_names() -> String {
     return context;
 }
 
-pub fn read_packet(interfaces: &[&str]) {
+pub fn read_packet(interfaces: &[String]) {
     let packet_box: Arc<RwLock<HashMap<NetworkInterface, Vec<EthernetIIFrame>>>> =
         Arc::new(RwLock::new(HashMap::new()));
 
@@ -50,17 +50,21 @@ pub fn read_packet(interfaces: &[&str]) {
     let interface_list = pnet::datalink::interfaces();
     let interfaces = interface_list
         .into_iter()
-        .filter(|x| interfaces.contains(&x.name.as_str()));
+        .filter(|x| interfaces.contains(&x.name));
 
     interfaces.for_each(|interface| {
         let map = Arc::clone(&packet_box);
-        
+
         println!("action thread for {:?}", &interface.name);
 
         let handle = thread::spawn(move || capture_packet(&interface, map));
 
         thread_handler.push(handle);
     });
+
+    if thread_handler.len() == 0 {
+        panic!("No interface be matched");
+    }
 
     loop {
         thread::sleep(Duration::from_millis(1000));
