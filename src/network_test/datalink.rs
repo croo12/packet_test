@@ -1,6 +1,6 @@
 use pnet::packet::{ethernet, PrimitiveValues};
 
-use crate::{network, util};
+use crate::network_test::{network, util};
 
 #[derive(Debug)]
 pub struct EthernetIIFrame {

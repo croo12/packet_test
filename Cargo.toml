@@ -8,3 +8,4 @@ build = "build.rs"
 
 [dependencies]
 pnet = "0.34"
+clap = { version = "4.0", features = ["derive"]}

@@ -1,4 +1,4 @@
-use crate::util;
+use crate::network_test::util;
 
 #[derive(Debug)]
 pub enum ProtocolType {

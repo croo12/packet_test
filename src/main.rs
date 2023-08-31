@@ -1,93 +1,80 @@
-mod datalink;
-mod network;
-mod transport;
-mod util;
+#![allow(unused)]
 
-extern crate pnet;
+use clap::Parser;
+use network_test::read_packet;
 
-use datalink::EthernetIIFrame;
-use pnet::datalink::Channel::Ethernet;
-use pnet::datalink::NetworkInterface;
+mod network_test;
 
-use std::collections::HashMap;
-use std::thread;
-use std::sync::{Arc, RwLock};
-use std::time::Duration;
+#[derive(Parser)]
+#[command(name = "NetworkTest")]
+#[command(author = "croo12 <its19447@gmail.com")]
+#[command(version = "0.1")]
+#[command(about = "NetworkTest And Rust Tutorial")]
+struct CommandLine {
+    command: Option<String>
+}
+
+fn main() {
+    let cmd = CommandLine::parse();
+
+    if let Some(command) = cmd.command {
+        match command.as_str() {
+            "ls" => {
+                print!("{}", network_test::get_interface_names());
+            },
+            "read" => {
+                read_packet(&["\\Device\\NPF_{795C5FEC-E759-4FF5-AE9A-F6782C4FC796}"])
+                // read_packet(interfaces)
+            }
+            _ => {
+                println!("this is not defined command");
+            }
+        }
+        
+    } else {
+        println!(
+            "This is Network Test. Made by croo12 <its19447@gmail.com>"
+        );
+    }
+
+
+}
 
 // Invoke as echo <interface name>
-fn main() {
-    // let interface_name = env::args().nth(1).unwrap();
-    // let interface_names_match = |iface: &NetworkInterface| iface.name == interface_name;
+// fn main() {
+//     // let interface_name = env::args().nth(1).unwrap();
+//     // let interface_names_match = |iface: &NetworkInterface| iface.name == interface_name;
 
-    // Find the network interface with the provided name
-    let interfaces = pnet::datalink::interfaces();
-    for i in &interfaces {
-        println!("이름: {}\n설명: {}\n", i.name, i.description);
-    }
+//     // Find the network interface with the provided name
+//     let interfaces = pnet::datalink::interfaces();
+//     for i in &interfaces {
+//         println!("이름: {}\n설명: {}\n", i.name, i.description);
+//     }
 
-    let packet_box = Arc::new(RwLock::new(HashMap::new()));
-    let mut handles = vec![];
+//     let packet_box = Arc::new(RwLock::new(HashMap::new()));
+//     let mut handles = vec![];
 
-    interfaces.into_iter().for_each(|interface| {
-        let map = Arc::clone(&packet_box);
-        let handle = thread::spawn(move || capture_packet(interface, map));
-        handles.push(handle);
-    });
+//     interfaces.into_iter().for_each(|interface| {
+//         let map = Arc::clone(&packet_box);
+//         let handle = thread::spawn(move || capture_packet(interface, map));
+//         handles.push(handle);
+//     });
 
-    loop {
-        // let mut buf = String::new();
-        // stdin().read_line(&mut buf).unwrap();
+//     loop {
+//         // let mut buf = String::new();
+//         // stdin().read_line(&mut buf).unwrap();
 
-        // println!("{}", buf);
+//         // println!("{}", buf);
 
-        std::thread::sleep(Duration::from_millis(1000));
+//         std::thread::sleep(Duration::from_millis(1000));
 
-        for (key, packet) in packet_box.read().unwrap().iter() {
-            println!("no.{} packet\n{:?}\n\n", key, packet);
-        }
+//         for (key, packet) in packet_box.read().unwrap().iter() {
+//             println!("no.{} packet\n{:?}\n\n", key, packet);
+//         }
 
-        println!("good choice");
-    }
-}
-
-fn capture_packet(
-    interface: NetworkInterface,
-    map: Arc<RwLock<HashMap<usize, EthernetIIFrame>>>,
-) {
-    // Create a new channel, dealing with layer 2 packets
-    let (mut _tx, mut rx) = match pnet::datalink::channel(&interface, Default::default()) {
-        Ok(Ethernet(tx, rx)) => (tx, rx),
-        Ok(_exception) => panic!("Unhandled channel type"),
-        Err(e) => {
-            println!("An error occurred when creating the datalink channel: {}\ninterface: {}", e, interface.description);
-            return;
-        },
-    };
-
-    loop {
-        match rx.next() {
-            Ok(packet) => {
-                // EthernetPacket::new(packet);
-                // let packet = EthernetPacket::new(packet).unwrap();
-                let custom_packet = datalink::EthernetIIFrame::new(packet);
-                match custom_packet {
-                    Some(pc) => {
-                        // println!("\n{:?}", pc);
-                        let key = map.read().unwrap().len();
-                        map.write().unwrap().insert(key, pc);
-                    }
-                    None => {
-                        println!("Problem is happened");
-                    }
-                };
-            }
-            Err(e) => {
-                // If an error occurs, we can handle it here
-                panic!("An error occurred while reading: {}", e);
-            }
-        }
-    }
-}
+//         println!("good choice");
+//     }
+// }
 
 // Constructs a single packet, the same length as the the one received,
 // using the provided closure. This allows the packet to be constructed
