@@ -24,7 +24,9 @@ enum Command {
 #[derive(Parser)]
 struct ReadArgs {
     #[arg(short, long)]
-    name: Vec<String>
+    name: Vec<String>,
+    #[arg(short, long)]
+    save: bool
 }
 
 fn main() {
@@ -38,7 +40,7 @@ fn main() {
             Command::Read(args) => {
                 println!("args = {:?}", args.name);
                 // read_packet(&[String::from("\\Device\\NPF_{795C5FEC-E759-4FF5-AE9A-F6782C4FC796}")]);
-                read_packet(&args.name);
+                read_packet(&args.name, args.save);
             }
             _ => {
                 println!("this is not defined command");

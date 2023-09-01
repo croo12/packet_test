@@ -11,9 +11,12 @@ use pnet::datalink::NetworkInterface;
 use pnet::util::MacAddr;
 
 use std::collections::HashMap;
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
+
+use std::fs;
+use std::io::Write;
 
 // static mut THREAD_HANDLER: Vec<JoinHandle<()>> = vec![];
 // static mut PACKET_BOX: RwLock<HashMap<NetworkInterface, Vec<EthernetIIFrame>>> = RwLock::new(HashMap::new());
@@ -22,26 +25,24 @@ pub fn get_interface_names() -> String {
     let mut context = String::new();
 
     for interface in pnet::datalink::interfaces() {
-        context.push_str(
-            &format!(
-                "[ Name : {} ]\ndescript : {}\nmacAddr : {:?}\nips : {:?}\nflags : {}\n",
-                interface.name,
-                interface.description,
-                if let Some(mac_addr) = interface.mac {
-                    mac_addr
-                } else {
-                    MacAddr::default()
-                },
-                interface.ips,
-                interface.flags
-            )
-        );
+        context.push_str(&format!(
+            "[ Name : {} ]\ndescript : {}\nmacAddr : {:?}\nips : {:?}\nflags : {}\n",
+            interface.name,
+            interface.description,
+            if let Some(mac_addr) = interface.mac {
+                mac_addr
+            } else {
+                MacAddr::default()
+            },
+            interface.ips,
+            interface.flags
+        ));
     }
 
     return context;
 }
 
-pub fn read_packet(interfaces: &[String]) {
+pub fn read_packet(interfaces: &[String], is_save: bool) {
     let packet_box: Arc<RwLock<HashMap<NetworkInterface, Vec<EthernetIIFrame>>>> =
         Arc::new(RwLock::new(HashMap::new()));
 
@@ -57,7 +58,7 @@ pub fn read_packet(interfaces: &[String]) {
 
         println!("action thread for {:?}", &interface.name);
 
-        let handle = thread::spawn(move || capture_packet(&interface, map));
+        let handle = thread::spawn(move || capture_packet(&interface, map, is_save));
 
         thread_handler.push(handle);
     });
@@ -74,6 +75,7 @@ pub fn read_packet(interfaces: &[String]) {
 fn capture_packet(
     interface: &NetworkInterface,
     map: Arc<RwLock<HashMap<NetworkInterface, Vec<EthernetIIFrame>>>>,
+    is_save: bool,
 ) {
     // Create a new channel, dealing with layer 2 packets
     let (mut _tx, mut rx) = match pnet::datalink::channel(&interface, Default::default()) {
@@ -88,6 +90,28 @@ fn capture_packet(
         }
     };
 
+    let file_name = format!(
+        "{}__{}.txt",
+        interface.name.as_str().replace("\\", "_"),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_millis()
+    );
+
+    println!("log file >> {}", file_name);
+
+    let mut log_file = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .append(true)
+        .open(&file_name);
+
+    let mut log_file = match log_file {
+        Err(e) => panic!("{:?}", e),
+        Ok(f) => f,
+    };
+
     loop {
         match rx.next() {
             Ok(packet) => {
@@ -96,8 +120,18 @@ fn capture_packet(
                 let custom_packet = datalink::EthernetIIFrame::new(packet);
                 match custom_packet {
                     Some(pc) => {
-                        println!("\n{:?}", pc);
+                        //print man
+                        let pac = format!("\n{:?}", pc);
+                        println!("{}", pac);
+
+                        //save to map
                         // map.write().unwrap().get(interface).unwrap().push(pc);
+
+                        if is_save {
+                            if let Err(e) = writeln!(log_file, "{}", pac) {
+                                eprintln!("cannot write packet data to this file");
+                            }
+                        }
                     }
                     None => {
                         println!("Problem is happened");
