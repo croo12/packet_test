@@ -2,6 +2,19 @@
 
 ##### 사용한 crate
 - pnet = "0.34"
+    - 패킷 캡쳐용
+- clap = "4.0"
+    - 명령어 parsing 쉽게 하려고 사용.
+---
 
-Ip4 패킷 쪼개기 시작 (0802)
-git에 올림 (0803)
+##### 현재 분리해 본 것
+
+###### DataLink
+- EthernetIIFrame
+
+###### Network
+- IPv4
+
+###### Transport
+- IPv4::TCP
+- IPv4::UDP
