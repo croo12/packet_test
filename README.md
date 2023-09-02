@@ -19,3 +19,21 @@
 ###### Transport
 - IPv4::TCP
 - IPv4::UDP
+---
+
+##### Help
+
+NetworkTest And Rust Tutorial
+
+Usage: network-test.exe [COMMAND]
+
+Commands:
+| command | description                                                        |
+|---------|--------------------------------------------------------------------|
+|  ls     |  find information about network interfaces                         |
+|  read   | capture packets on network interfaces specified by the name option |
+|  help   | Print this message or the help of the given subcommand(s)          |
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version

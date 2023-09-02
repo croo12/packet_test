@@ -17,14 +17,18 @@ struct CommandLine {
 
 #[derive(Parser)]
 enum Command {
+    /// find information about network interfaces.
     Ls,
+    /// capture packets on network interfaces specified by the name option.
     Read(ReadArgs)
 }
 
 #[derive(Parser)]
 struct ReadArgs {
+    /// enter the network interface name to be used for capturing packets.
     #[arg(short, long)]
     name: Vec<String>,
+    /// this option makes a file to record packets
     #[arg(short, long)]
     save: bool
 }
@@ -38,7 +42,12 @@ fn main() {
                 print!("{}", network_test::get_interface_names());
             },
             Command::Read(args) => {
+                if args.name.len() == 0 {
+                    panic!("Input interface name what you want to use");
+                }
+
                 println!("args = {:?}", args.name);
+                
                 // read_packet(&[String::from("\\Device\\NPF_{795C5FEC-E759-4FF5-AE9A-F6782C4FC796}")]);
                 read_packet(&args.name, args.save);
             }
