@@ -1,5 +1,9 @@
+use pnet::util::MacAddr;
+
 use crate::network_test::{transport, util};
 use std::net;
+
+use super::util::{assemble_byte, mapping_mac_addr};
 
 #[derive(Debug)]
 pub enum PacketType {
@@ -7,7 +11,7 @@ pub enum PacketType {
     XNSIDP,
     IPv4(IPv4Packet),
     X25PLP,
-    ARP,
+    ARP(ARPPacket),
     RARP,
     NetwareIPX,
     NetBIOS,
@@ -96,7 +100,7 @@ impl IPv4Packet {
             _ => {
                 // println!("do nothing");
                 transport::TransportSegment::UNDEFINED
-            },
+            }
         };
         // - data(세그먼트) 나머지 전부
 
@@ -115,6 +119,47 @@ impl IPv4Packet {
             receiver_ip,
             option,
             payload,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct ARPPacket {
+    hardware_type: u16,
+    protocol_type: u16,
+    hardware_address_length: u8,
+    protocol_address_length: u8,
+    operation: u16,
+    sender_hardware_address: MacAddr,
+    sender_protocol_address: u32,
+    target_hardware_address: MacAddr,
+    target_protocol_address: u32,
+}
+
+impl ARPPacket {
+    pub fn new(byte_array: &[u8]) -> Option<Self> {
+        let mut iter = byte_array.iter().map(|&s| s);
+
+        let hardware_type: u16 = assemble_byte(&mut iter.by_ref().take(2));
+        let protocol_type: u16 = assemble_byte(&mut iter.by_ref().take(2));
+        let hardware_address_length: u8 = iter.next().unwrap();
+        let protocol_address_length: u8 = iter.next().unwrap();
+        let operation: u16 = assemble_byte(&mut iter.by_ref().take(2));
+        let sender_hardware_address: MacAddr = mapping_mac_addr(iter.by_ref().take(6).collect());
+        let sender_protocol_address: u32 = assemble_byte(&mut iter.by_ref().take(4));
+        let target_hardware_address: MacAddr = mapping_mac_addr(iter.by_ref().take(6).collect());
+        let target_protocol_address: u32 = assemble_byte(&mut iter.by_ref().take(4));
+
+        Some(ARPPacket {
+            hardware_type,
+            protocol_type,
+            hardware_address_length,
+            protocol_address_length,
+            operation,
+            sender_hardware_address,
+            sender_protocol_address,
+            target_hardware_address,
+            target_protocol_address,
         })
     }
 }

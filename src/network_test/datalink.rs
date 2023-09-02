@@ -26,7 +26,7 @@ impl EthernetIIFrame {
             0x0600 => network::PacketType::XNSIDP,
             0x0800 => network::PacketType::IPv4(network::IPv4Packet::new(&bytes).unwrap()),
             0x0805 => network::PacketType::X25PLP,
-            0x0806 => network::PacketType::ARP,
+            0x0806 => network::PacketType::ARP(network::ARPPacket::new(&bytes).unwrap()),
             0x8035 => network::PacketType::RARP,
             0x8137 => network::PacketType::NetwareIPX,
             0x8191 => network::PacketType::NetBIOS,
