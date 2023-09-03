@@ -15,6 +15,7 @@
 ###### Network
 - IPv4
 - ARP
+- IPv6
 
 ###### Transport
 - IPv4::TCP
