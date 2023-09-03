@@ -3,8 +3,6 @@ use pnet::util::MacAddr;
 use crate::network_test::{transport, util};
 use std::net;
 
-use super::util::{assemble_byte, mapping_mac_addr};
-
 #[derive(Debug)]
 pub enum PacketType {
     Length(u16),
@@ -15,7 +13,7 @@ pub enum PacketType {
     RARP,
     NetwareIPX,
     NetBIOS,
-    IPv6,
+    IPv6(IPv6Packet),
     UNDEFINED(u16),
 }
 
@@ -140,15 +138,17 @@ impl ARPPacket {
     pub fn new(byte_array: &[u8]) -> Option<Self> {
         let mut iter = byte_array.iter().map(|&s| s);
 
-        let hardware_type: u16 = assemble_byte(&mut iter.by_ref().take(2));
-        let protocol_type: u16 = assemble_byte(&mut iter.by_ref().take(2));
+        let hardware_type: u16 = util::assemble_byte(&mut iter.by_ref().take(2));
+        let protocol_type: u16 = util::assemble_byte(&mut iter.by_ref().take(2));
         let hardware_address_length: u8 = iter.next().unwrap();
         let protocol_address_length: u8 = iter.next().unwrap();
-        let operation: u16 = assemble_byte(&mut iter.by_ref().take(2));
-        let sender_hardware_address: MacAddr = mapping_mac_addr(iter.by_ref().take(6).collect());
-        let sender_protocol_address: u32 = assemble_byte(&mut iter.by_ref().take(4));
-        let target_hardware_address: MacAddr = mapping_mac_addr(iter.by_ref().take(6).collect());
-        let target_protocol_address: u32 = assemble_byte(&mut iter.by_ref().take(4));
+        let operation: u16 = util::assemble_byte(&mut iter.by_ref().take(2));
+        let sender_hardware_address: MacAddr =
+            util::mapping_mac_addr(iter.by_ref().take(6).collect());
+        let sender_protocol_address: u32 = util::assemble_byte(&mut iter.by_ref().take(4));
+        let target_hardware_address: MacAddr =
+            util::mapping_mac_addr(iter.by_ref().take(6).collect());
+        let target_protocol_address: u32 = util::assemble_byte(&mut iter.by_ref().take(4));
 
         Some(ARPPacket {
             hardware_type,
@@ -160,6 +160,51 @@ impl ARPPacket {
             sender_protocol_address,
             target_hardware_address,
             target_protocol_address,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct IPv6Packet {
+    version: u8,
+    traffic_class: u8,
+    flow_label: u32,
+    payload_length: u16,
+    next_header: u8,
+    hop_limit: u8,
+    source_address: u128,
+    destination_address: u128,
+    payload: Vec<u8>,
+}
+
+impl IPv6Packet {
+    pub fn new(byte_array: &[u8]) -> Option<Self> {
+        let mut iter = byte_array.iter().map(|&s| s);
+
+        let (version, rest) = util::splice_byte(4, iter.next().unwrap());
+        let (first, last) = util::splice_byte(4, iter.next().unwrap());
+
+        let traffic_class: u8 = rest << 4 + first;
+
+        let flow_label: u32 =
+            util::assemble_byte(&mut [last].into_iter().chain(iter.by_ref().take(2)));
+        let payload_length: u16 = util::assemble_byte(&mut iter.by_ref().take(2));
+        let next_header: u8 = iter.next().unwrap();
+        let hop_limit: u8 = iter.next().unwrap();
+        let source_address: u128 = util::assemble_byte(&mut iter.by_ref().take(16));
+        let destination_address: u128 = util::assemble_byte(&mut iter.by_ref().take(16));
+        let payload = iter.collect();
+
+        Some(IPv6Packet {
+            version,
+            traffic_class,
+            flow_label,
+            payload_length,
+            next_header,
+            hop_limit,
+            source_address,
+            destination_address,
+            payload,
         })
     }
 }

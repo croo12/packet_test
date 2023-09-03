@@ -30,7 +30,7 @@ impl EthernetIIFrame {
             0x8035 => network::PacketType::RARP,
             0x8137 => network::PacketType::NetwareIPX,
             0x8191 => network::PacketType::NetBIOS,
-            0x86DD => network::PacketType::IPv6,
+            0x86DD => network::PacketType::IPv6(network::IPv6Packet::new(&bytes).unwrap()),
             other => network::PacketType::UNDEFINED(other),
         };
 
